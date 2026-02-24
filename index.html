@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sift - Intelligent Food Scanner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./src/style.css">
+</head>
+
+<body
+    class="h-screen flex flex-col overflow-hidden text-slate-800 antialiased selection:bg-emerald-100 selection:text-emerald-900">
+
+
+    <!-- Header (Sticky & Glass) -->
+    <header class="fixed top-0 w-full z-40">
+        <div class="glass shadow-sm max-w-md mx-auto">
+            <div class="px-5 py-3 flex justify-between items-center">
+                <button onclick="toggleHistory()"
+                    class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-emerald-50 text-slate-500 transition-colors">
+                    <i class="ph-bold ph-clock-counter-clockwise text-xl"></i>
+                </button>
+                <div class="flex items-center gap-2.5">
+                    <!-- Food Related Logo -->
+                    <div
+                        class="bg-gradient-to-br from-emerald-500 to-teal-600 text-white p-2 rounded-xl shadow-md shadow-emerald-200">
+                        <i class="ph-bold ph-carrot text-lg"></i>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight text-slate-900">Sift</span>
+                </div>
+                <button onclick="toggleSettings()"
+                    class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-emerald-50 text-slate-500 transition-colors">
+                    <i class="ph-bold ph-sliders-horizontal text-xl"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+
+    <!-- Main Content Area -->
+    <main class="flex-1 w-full max-w-md mx-auto pt-[70px] pb-[80px] overflow-y-auto no-scrollbar relative">
+
+        <!-- Setup Hint (If no API Key) -->
+        <div id="setup-hint" class="hidden px-4 mb-4 mt-2">
+            <div onclick="toggleSettings()"
+                class="bg-rose-50 border border-rose-100 rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow">
+                <div
+                    class="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 flex-shrink-0">
+                    <i class="ph-fill ph-warning-circle text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-rose-900 text-sm">Setup Required</h3>
+                    <p class="text-rose-700 text-xs mt-0.5">Tap to add your API Key.</p>
+                </div>
+                <i class="ph-bold ph-caret-right text-rose-300 ml-auto"></i>
+            </div>
+        </div>
+
+
+        <!-- Welcome / Empty State -->
+        <div id="empty-state" class="flex flex-col items-center justify-center min-h-[60vh] px-8 text-center">
+            <div class="relative mb-8">
+                <div class="absolute inset-0 bg-emerald-200 rounded-full blur-2xl opacity-40 animate-pulse"></div>
+                <div
+                    class="bg-white p-6 rounded-[2rem] shadow-xl shadow-emerald-100/50 relative z-10 border border-emerald-50">
+                    <i class="ph-duotone ph-scan text-6xl text-emerald-600"></i>
+                </div>
+            </div>
+
+            <h2 class="text-2xl font-bold text-slate-900 mb-2">Check your food.</h2>
+            <p class="text-slate-500 leading-relaxed text-sm max-w-[280px]">
+                Snap a photo. See if it matches your dietary needs instantly.
+            </p>
+
+
+            <div
+                class="mt-8 flex gap-3 text-xs text-slate-400 font-medium bg-white px-4 py-2 rounded-full border border-slate-100 shadow-sm">
+                <span class="flex items-center gap-1"><i class="ph-fill ph-check-circle text-emerald-500"></i>
+                    Packaging</span>
+                <span class="w-px h-3 bg-slate-200"></span>
+                <span class="flex items-center gap-1"><i class="ph-fill ph-check-circle text-emerald-500"></i>
+                    Ingredients</span>
+            </div>
+        </div>
+
+
+        <!-- Error State -->
+        <div id="error-state"
+            class="hidden flex-col items-center justify-center min-h-[50vh] px-8 text-center animate-fade-in">
+            <div class="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mb-4 text-rose-500">
+                <i class="ph-bold ph-warning-octagon text-3xl"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mb-2">Analysis Failed</h3>
+            <p id="error-message" class="text-sm text-slate-500 mb-6">Something went wrong.</p>
+            <button onclick="resetApp()"
+                class="px-6 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition text-sm">
+                Try Again
+            </button>
+        </div>
+
+
+        <!-- Analysis View (Hidden by default) -->
+        <div id="analysis-view" class="hidden">
+            <!-- Image Header -->
+            <div class="relative w-full h-80 bg-slate-900 group overflow-hidden">
+                <img id="captured-image"
+                    class="w-full h-full object-cover opacity-80 transition-transform duration-700 group-hover:scale-105" />
+                <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
+
+                <!-- Scan Animation Line -->
+                <div id="scan-animation" class="scan-line hidden"></div>
+
+
+                <!-- Loading State -->
+                <div id="loading-indicator" class="absolute inset-0 flex flex-col items-center justify-center z-20">
+                    <div class="glass-dark px-6 py-4 rounded-2xl flex flex-col items-center gap-3">
+                        <span class="loader"></span>
+                        <p class="text-white text-xs font-medium tracking-wide animate-pulse">CHECKING...</p>
+                    </div>
+                </div>
+
+
+                <!-- Product Title Overlay -->
+                <div id="product-header-content"
+                    class="absolute bottom-0 left-0 w-full p-6 text-white z-10 transition-opacity duration-500 opacity-0">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span id="result-origin"
+                            class="hidden px-2 py-0.5 rounded-md text-[10px] font-bold bg-white/20 backdrop-blur border border-white/30 uppercase tracking-wider text-white shadow-sm"></span>
+                    </div>
+                    <h2 id="result-product-name"
+                        class="text-3xl font-bold leading-none mb-1 shadow-black/50 drop-shadow-md"></h2>
+                    <p id="result-product-desc" class="text-slate-300 text-sm line-clamp-2"></p>
+                </div>
+            </div>
+
+
+            <!-- Analysis Cards Container -->
+            <div id="results-container" class="px-5 pb-10 -mt-6 relative z-10 space-y-5 hidden">
+
+                <!-- 1. Hero Verdict Card -->
+                <div id="card-verdict"
+                    class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden transition-all duration-500 transform">
+                    <div id="verdict-banner"
+                        class="p-6 flex flex-col items-center text-center gap-2 transition-colors duration-500">
+                        <div id="verdict-icon"
+                            class="w-16 h-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-4xl mb-1 shadow-inner text-white transition-all duration-300">
+                            <i class="ph-fill ph-shield-check"></i>
+                        </div>
+                        <h3 id="verdict-text" class="text-2xl font-bold text-white tracking-tight uppercase">SAFE</h3>
+                    </div>
+                    <div class="p-5 bg-white">
+                        <p id="verdict-reason" class="text-slate-600 text-sm leading-relaxed font-medium">Scanning...
+                        </p>
+                    </div>
+                </div>
+
+
+                <!-- 2. Conditional Analysis Grid (Diabetes/Religion) -->
+                <div id="conditional-analysis-grid" class="grid grid-cols-2 gap-4 hidden">
+                    <div id="card-diabetes"
+                        class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-3 hidden">
+                        <div
+                            class="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl">
+                            <i class="ph-fill ph-drop"></i>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Diabetes</span>
+                            <p id="diabetes-info" class="text-xs text-slate-700 font-medium mt-1 leading-snug">...</p>
+                        </div>
+                    </div>
+                    <div id="card-religion"
+                        class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-3 hidden">
+                        <div
+                            class="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-xl">
+                            <i class="ph-fill ph-hands-praying"></i>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Religious</span>
+                            <p id="religious-info" class="text-xs text-slate-700 font-medium mt-1 leading-snug">...</p>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- 3. Allergens & Factory -->
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                    <div class="flex items-center gap-2.5 mb-4 pb-3 border-b border-slate-50">
+                        <i class="ph-fill ph-warning-octagon text-amber-500 text-xl"></i>
+                        <h3 class="font-bold text-slate-800 text-sm">Allergens & Risks</h3>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Found
+                                / Inferred</span>
+                            <div id="allergens-list" class="flex flex-wrap gap-2"></div>
+                        </div>
+
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                            <span
+                                class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Factory
+                                Info</span>
+                            <p id="factory-info" class="text-xs text-slate-600 font-medium leading-relaxed">...</p>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- 4. Alternatives (Enhanced) -->
+                <div
+                    class="bg-gradient-to-br from-emerald-950 to-slate-900 rounded-2xl p-5 shadow-lg shadow-emerald-900/20 text-white relative overflow-hidden">
+                    <!-- Background decoration -->
+                    <div
+                        class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none">
+                    </div>
+
+                    <div class="flex items-center gap-2.5 mb-4 relative z-10">
+                        <div class="w-8 h-8 rounded-lg bg-emerald-500/30 flex items-center justify-center">
+                            <i class="ph-bold ph-shopping-cart text-emerald-200"></i>
+                        </div>
+                        <h3 class="font-bold text-sm">Better Options</h3>
+                    </div>
+
+                    <ul id="alternatives-list" class="space-y-3 relative z-10">
+                        <!-- Items injected here -->
+                    </ul>
+                </div>
+
+                <div class="h-4"></div> <!-- Spacer -->
+            </div>
+        </div>
+
+
+    </main>
+
+
+    <!-- Bottom Action Bar (Fixed) -->
+    <div class="fixed bottom-0 w-full z-40">
+        <div class="glass shadow-[0_-4px_20px_rgba(0,0,0,0.05)] pt-4 pb-8 px-4 max-w-md mx-auto">
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('file-upload').click()"
+                    class="aspect-square h-14 rounded-2xl bg-white text-slate-600 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 flex items-center justify-center transition-colors">
+                    <i class="ph-bold ph-image text-2xl text-emerald-700"></i>
+                </button>
+                <button id="scan-btn" onclick="handleMainButtonClick()"
+                    class="flex-1 h-14 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold rounded-2xl shadow-lg shadow-emerald-200 flex items-center justify-center gap-2.5 transition-all">
+                    <i class="ph-bold ph-camera text-xl"></i>
+                    <span id="scan-btn-text">Scan Food</span>
+                </button>
+            </div>
+            <input type="file" id="file-upload" accept="image/*" class="hidden" onchange="handleFileUpload(event)">
+        </div>
+    </div>
+
+
+    <!-- Camera View Overlay (Hidden) -->
+    <div id="camera-view" class="hidden fixed inset-0 bg-black z-[70] flex flex-col">
+        <video id="video-feed" class="flex-1 w-full h-full object-cover" autoplay playsinline></video>
+
+        <div class="absolute inset-0 scanner-overlay pointer-events-none"></div>
+
+        <!-- Animated Guide Frame -->
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div class="w-72 h-72 border-2 border-white/30 rounded-3xl relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-xl"></div>
+                <div class="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-xl"></div>
+                <div class="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-xl"></div>
+                <div class="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-xl"></div>
+                <!-- Scan line animation inside frame -->
+                <div class="scan-line"></div>
+            </div>
+        </div>
+
+        <!-- Camera Controls -->
+        <div class="absolute bottom-10 left-0 right-0 px-8 flex justify-between items-center z-50 max-w-md mx-auto">
+            <button onclick="closeCamera()"
+                class="w-12 h-12 rounded-full bg-white/10 backdrop-blur text-white flex items-center justify-center hover:bg-white/20 transition">
+                <i class="ph-bold ph-x text-xl"></i>
+            </button>
+            <button onclick="capturePhoto()"
+                class="w-20 h-20 rounded-full border-4 border-white bg-transparent flex items-center justify-center hover:bg-white/10 transition group">
+                <div
+                    class="w-16 h-16 rounded-full bg-white group-active:scale-90 transition shadow-[0_0_20px_rgba(255,255,255,0.4)]">
+                </div>
+            </button>
+            <button onclick="document.getElementById('file-upload').click()"
+                class="w-12 h-12 rounded-full bg-white/10 backdrop-blur text-white flex items-center justify-center hover:bg-white/20 transition">
+                <i class="ph-bold ph-image text-xl"></i>
+            </button>
+        </div>
+    </div>
+
+
+    <!-- Settings Modal -->
+    <div id="settings-modal"
+        class="hidden fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm transition-opacity opacity-0">
+        <div
+            class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl transform transition-transform translate-y-full sm:translate-y-0 max-h-[90vh] h-auto flex flex-col">
+            <div class="flex justify-between items-center mb-6 flex-none">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                        <i class="ph-bold ph-user-circle text-2xl"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-slate-900">Profile</h2>
+                </div>
+                <button onclick="saveSettings()"
+                    class="text-sm font-bold text-emerald-600 hover:text-emerald-700">Done</button>
+            </div>
+
+
+            <div class="space-y-6 overflow-y-auto flex-1 pb-4">
+                <!-- API Key Section -->
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <label class="block text-xs font-bold uppercase text-slate-500 tracking-wider mb-2">Gemini API
+                        Key</label>
+                    <div class="flex gap-2">
+                        <input type="password" id="api-key" placeholder="Paste key here..."
+                            class="flex-1 p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition text-sm font-mono text-slate-700 shadow-sm">
+                        <button onclick="testApiKey()" id="test-key-btn"
+                            class="px-4 bg-slate-200 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-300 transition uppercase tracking-wide">
+                            Test
+                        </button>
+                    </div>
+                    <div id="api-key-status" class="hidden mt-2 text-xs flex items-center gap-1.5 font-medium"></div>
+                </div>
+
+
+                <!-- Diet Options Section -->
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 tracking-wider mb-3">Dietary
+                        Requirements</label>
+                    <div id="diet-options" class="flex flex-wrap gap-2 mb-4">
+                        <button onclick="toggleOption(this, 'Diabetes')"
+                            class="option-chip px-3 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 bg-white">Diabetes</button>
+                        <button onclick="toggleOption(this, 'Halal')"
+                            class="option-chip px-3 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 bg-white">Halal</button>
+                        <button onclick="toggleOption(this, 'Kosher')"
+                            class="option-chip px-3 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 bg-white">Kosher</button>
+                        <button onclick="toggleOption(this, 'Vegan')"
+                            class="option-chip px-3 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 bg-white">Vegan</button>
+                        <button onclick="toggleOption(this, 'Vegetarian')"
+                            class="option-chip px-3 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 bg-white">Vegetarian</button>
+                        <button onclick="toggleOption(this, 'Gluten-Free')"
+                            class="option-chip px-3 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 bg-white">Gluten-Free</button>
+                    </div>
+
+
+                    <label class="block text-xs font-bold uppercase text-slate-500 tracking-wider mb-2">Specific
+                        Allergies / Other</label>
+                    <div class="relative">
+                        <textarea id="restrictions" rows="3" placeholder="e.g. Peanut Allergy, Shellfish..."
+                            class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition text-sm text-slate-700 resize-none"></textarea>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="pt-4 border-t border-slate-100 flex-none pb-2">
+                <button onclick="saveSettings()"
+                    class="w-full py-4 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 transition shadow-lg shadow-emerald-200 active:scale-[0.99]">
+                    Confirm & Save
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- History Modal -->
+    <div id="history-modal"
+        class="hidden fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm transition-opacity opacity-0">
+        <div
+            class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl transform transition-transform translate-y-full sm:translate-y-0 h-[85vh] sm:h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6 flex-none">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                        <i class="ph-bold ph-clock-counter-clockwise text-2xl"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-slate-900">Scan History</h2>
+                </div>
+                <button onclick="toggleHistory()"
+                    class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200">
+                    <i class="ph-bold ph-x text-lg"></i>
+                </button>
+            </div>
+
+            <div id="history-list" class="flex-1 overflow-y-auto space-y-3 no-scrollbar pb-4">
+                <!-- History Items Injected Here -->
+                <p class="text-center text-slate-400 py-10 text-sm">No scans yet.</p>
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 flex-none">
+                <button onclick="clearHistory()"
+                    class="w-full py-3 bg-slate-100 text-slate-600 font-bold rounded-2xl hover:bg-slate-200 transition">
+                    Clear History
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="module" src="./src/main.js"></script>
+</body>
+
+</html>
