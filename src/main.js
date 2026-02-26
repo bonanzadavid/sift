@@ -75,8 +75,6 @@ window.handleMainButtonClick = function () {
 // --- Modal Toggles ---
 function toggleModal(modal) {
     const isHidden = modal.classList.contains('hidden');
-    if (modal.id === 'settings-modal' && isHidden) els.apiKeyStatus.classList.add('hidden');
-
     if (isHidden) {
         modal.classList.remove('hidden');
         setTimeout(() => {
