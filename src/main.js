@@ -3,7 +3,7 @@ const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
 
 // --- State Management ---
 const state = {
-    apiKey: apiKey !== "" ? apiKey : (localStorage.getItem('gemini_api_key') || ''),
+    apiKey: apiKey,
     restrictions: localStorage.getItem('user_restrictions') || '',
     selectedOptions: JSON.parse(localStorage.getItem('user_options') || '[]'),
     history: JSON.parse(localStorage.getItem('scan_history') || '[]'),
@@ -19,7 +19,6 @@ const els = {
     emptyState: document.getElementById('empty-state'),
     errorState: document.getElementById('error-state'),
     errorMessage: document.getElementById('error-message'),
-    setupHint: document.getElementById('setup-hint'),
     video: document.getElementById('video-feed'),
     capturedImage: document.getElementById('captured-image'),
     loadingIndicator: document.getElementById('loading-indicator'),
@@ -28,9 +27,6 @@ const els = {
     settingsModal: document.getElementById('settings-modal'),
     historyModal: document.getElementById('history-modal'),
     historyList: document.getElementById('history-list'),
-    apiKeyInput: document.getElementById('api-key'),
-    apiKeyStatus: document.getElementById('api-key-status'),
-    testKeyBtn: document.getElementById('test-key-btn'),
     restrictionsInput: document.getElementById('restrictions'),
     optionChips: document.querySelectorAll('.option-chip'),
     scanBtn: document.getElementById('scan-btn'),
@@ -65,41 +61,14 @@ const els = {
 // --- Initialization ---
 function init() {
     console.log("Sift App Initializing...");
-    els.apiKeyInput.value = localStorage.getItem('gemini_api_key') || '';
     els.restrictionsInput.value = state.restrictions;
     updateOptionChips();
-    checkConfig();
-}
-
-
-function checkConfig() {
-    if (!state.apiKey) {
-        // State: Missing Key
-        els.setupHint.classList.remove('hidden');
-        els.scanBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
-        els.scanBtn.classList.add('bg-rose-600', 'hover:bg-rose-700');
-        els.scanBtnText.innerText = "Add Key";
-        const icon = els.scanBtn.querySelector('i');
-        if (icon) icon.className = "ph-bold ph-gear text-xl";
-    } else {
-        // State: Ready
-        els.setupHint.classList.add('hidden');
-        els.scanBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
-        els.scanBtn.classList.remove('bg-rose-600', 'hover:bg-rose-700');
-        els.scanBtnText.innerText = "Scan Food";
-        const icon = els.scanBtn.querySelector('i');
-        if (icon) icon.className = "ph-bold ph-camera text-xl";
-    }
 }
 
 
 // --- Button Logic ---
 window.handleMainButtonClick = function () {
-    if (!state.apiKey) {
-        toggleSettings();
-    } else {
-        openCamera();
-    }
+    openCamera();
 }
 
 
@@ -157,72 +126,11 @@ function updateOptionChips() {
 
 
 window.saveSettings = function () {
-    const newKey = els.apiKeyInput.value.trim();
     const newRest = els.restrictionsInput.value.trim();
-
-    if (newKey) {
-        localStorage.setItem('gemini_api_key', newKey);
-        state.apiKey = newKey;
-    } else {
-        localStorage.removeItem('gemini_api_key');
-        state.apiKey = apiKey !== "" ? apiKey : "";
-    }
-
-
     localStorage.setItem('user_restrictions', newRest);
     state.restrictions = newRest;
     localStorage.setItem('user_options', JSON.stringify(state.selectedOptions));
-
-    checkConfig();
     toggleSettings();
-}
-
-
-window.testApiKey = async function () {
-    const keyToTest = els.apiKeyInput.value.trim() || state.apiKey;
-    if (!keyToTest) {
-        showKeyStatus("error", "Enter a key first.");
-        return;
-    }
-
-
-    els.testKeyBtn.innerText = "...";
-    els.testKeyBtn.disabled = true;
-
-
-    try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${keyToTest}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: "Hi" }] }] })
-        });
-
-
-        const data = await response.json();
-        if (response.ok && !data.error) {
-            showKeyStatus("success", "Verified!");
-        } else {
-            showKeyStatus("error", "Invalid Key");
-        }
-    } catch (e) {
-        showKeyStatus("error", "Connection failed");
-    } finally {
-        els.testKeyBtn.innerText = "TEST";
-        els.testKeyBtn.disabled = false;
-    }
-}
-
-
-function showKeyStatus(type, msg) {
-    els.apiKeyStatus.classList.remove('hidden', 'text-emerald-600', 'text-rose-600');
-    els.apiKeyStatus.innerHTML = "";
-    if (type === "success") {
-        els.apiKeyStatus.classList.add('text-emerald-600');
-        els.apiKeyStatus.innerHTML = `<i class="ph-bold ph-check-circle"></i> ${msg}`;
-    } else {
-        els.apiKeyStatus.classList.add('text-rose-600');
-        els.apiKeyStatus.innerHTML = `<i class="ph-bold ph-warning-circle"></i> ${msg}`;
-    }
 }
 
 
@@ -294,7 +202,6 @@ window.clearHistory = function () {
 
 // --- Camera & File Logic ---
 async function openCamera() {
-    if (!state.apiKey) { toggleSettings(); return; }
     console.log("Opening camera...");
 
     if (!window.isSecureContext && window.location.hostname !== 'localhost') {
@@ -351,7 +258,6 @@ window.capturePhoto = function () {
 
 window.handleFileUpload = function (event) {
     const file = event.target.files[0];
-    if (!state.apiKey) { toggleSettings(); return; }
     if (file) {
         const reader = new FileReader();
         reader.onload = (e) => processImage(e.target.result);
@@ -419,7 +325,6 @@ function fireConfetti() {
 
 
 async function analyzeWithGemini(base64Data) {
-    if (!state.apiKey || !state.apiKey.trim()) { toggleSettings(); resetApp(); return; }
 
 
     const customRestrictions = state.restrictions.trim();
@@ -497,14 +402,7 @@ async function analyzeWithGemini(base64Data) {
 
     } catch (error) {
         console.error("Gemini Error:", error);
-        if (error.message.includes("API key") || error.message.includes("key not valid")) {
-            localStorage.removeItem('gemini_api_key');
-            state.apiKey = '';
-            checkConfig();
-            showError("Invalid API Key. Please update in settings.");
-        } else {
-            showError("Analysis failed: " + error.message);
-        }
+        showError("Analysis failed: " + error.message);
     }
 }
 
